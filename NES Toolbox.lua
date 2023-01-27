@@ -225,7 +225,7 @@ dlg:button {
 
         local apals = buildPals(pal)
         
-        vprint( 1, string.format("Found %s colors in palette.", tostring(n) ) )
+        vprint( 1, string.format("Found %s colors in palette.", tostring(#pal) ) )
 
         local col
         local idx
@@ -247,6 +247,71 @@ dlg:button {
                 end
             end
         end
+        -- Here we change the cel image, this generates one undoable action
+        cel.image = img
+        -- Here we redraw the screen to show the modified pixels, in a future
+        -- this shouldn't be necessary, but just in case...
+        app.refresh()
+    end
+}
+
+dlg:separator{ id="swizzling section", text="Swizzle Tiles" }
+
+local function copyTileTo(stx,sty,simg,dtx,dty,dimg)
+    
+    local sy = sty*8
+    local sx = stx*8
+    local dy = dty*8
+    local dx = dtx*8
+    
+    for y=0, 7 do
+        for x=0, 7 do
+            dimg:putPixel( dx, dy, simg:getPixel(sx,sy) )
+            sx = sx + 1
+            dx = dx + 1
+        end
+        sx = stx*8
+        dx = dtx*8
+        sy = sy + 1
+        dy = dy + 1
+    end
+end
+
+dlg:button {
+    id="swizzle",
+    text = "SWIZZLE",
+    onclick = function()
+--        math.randomseed(os.time())
+
+        local cel = app.activeCel
+        local img = getImg(cel) -- if an img is returned, it is valid
+        if img == nil then
+            return
+        end
+
+        local src_img = cel.image;
+
+        local ccx = img.width/8
+        local ccy = img.height/16
+        vprint( 1, string.format("Image is %dx%d and therefore composed of %dx%d 8x16 pixels tiles.", img.width,img.height,ccx,ccy ) )
+
+        local py=0
+        for cy=0, ccy-1 do
+            local px = 0
+            for cx=0, (ccx/2)-1 do
+                copyTileTo(cx,py,src_img,px,  py,img);
+                copyTileTo(cx,py+1,src_img,px+1,py,img);
+                px = px + 2
+            end
+            px = 0
+            for cx=ccx/2, ccx-1 do
+                copyTileTo(cx,py,src_img,px,  py+1,img);
+                copyTileTo(cx,py+1,src_img,px+1,py+1,img);
+                px = px + 2
+            end
+            py = py + 2
+        end
+        
         -- Here we change the cel image, this generates one undoable action
         cel.image = img
         -- Here we redraw the screen to show the modified pixels, in a future
